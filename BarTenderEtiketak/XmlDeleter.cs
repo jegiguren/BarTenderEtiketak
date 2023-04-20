@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml;
 
 namespace BarTenderEtiketak
 {
@@ -13,7 +14,7 @@ namespace BarTenderEtiketak
         string destino = @"C:\bt\XML kopiak\";
         public XmlDeleter() { }
 
-        public void ezabatuXml()
+        public void ezabatuKarpeta()
         {
             string[] fitxategiak = Directory.GetFiles(origen);
 
@@ -31,6 +32,20 @@ namespace BarTenderEtiketak
                 {
                     Console.WriteLine("Fitxategia ez da ongi mugitu karpetara");
                 }
+            }
+        }
+
+        public void ezabatuXml(string filePath)
+        {
+
+            if (File.Exists(filePath))
+            {
+                File.Move(filePath, Path.Combine(destino, Path.GetFileName(filePath)));
+                Console.WriteLine("Fitxategia ongi ezabatu da: {0}", filePath);
+            }
+            else
+            {
+                Console.WriteLine("Fitxategia ezin da ezabatu: {0} ez da existitzen.", filePath);
             }
         }
     }

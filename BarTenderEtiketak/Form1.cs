@@ -35,6 +35,7 @@ namespace BarTenderEtiketak
         string intermec = "Intermec PM43c_406_BACKUP";
         string pdf = "Microsoft Print to Pdf";
         string konica = "KONICA MINOLTA Admin";
+        Queue<LabelFormatDocument> kola = new Queue<LabelFormatDocument>();
 
 
         public Form1()
@@ -66,7 +67,7 @@ namespace BarTenderEtiketak
             Xml_print.Text = "BEGIRALEA MARTXAN DAGO...";
             btn_Gelditu.Enabled = true;
             begira = true;
-    
+
         }
 
         private async Task begiratuKarpeta(string filePath)
@@ -125,15 +126,15 @@ namespace BarTenderEtiketak
 
 
                 BaloreakAsignatu(rootNode, etiketa, pdf);
-                BaloreakAsignatu(rootNode, etiketaCode, pdf);
+                //BaloreakAsignatu(rootNode, etiketaCode, pdf);
                 //BaloreakAsignatu(rootNode, etiketaGarantia, konica);
 
                 //crea un objeto de la clase XmlDeleter
-                XmlDeleter deleter = new XmlDeleter();
+                //XmlDeleter deleter = new XmlDeleter();
 
                 //borra el archivo de la carpeta "XML" y guarda una copia en la carpeta "Xml kopiak"
-                Thread.Sleep(500);
-                deleter.ezabatuXml();
+                //Thread.Sleep(500);
+                //deleter.ezabatuXml();
 
                 //Limpiar el listbox despues de imprimir
                 Invoke(new Action(() =>
@@ -157,7 +158,7 @@ namespace BarTenderEtiketak
 
             // Actualizar el contenido del ListBox con los nombres de los archivos
             listBox1.Invoke(new Action(() => {
-                listBox1.Items.Clear();
+                //listBox1.Items.Clear();
                 listBox1.Items.AddRange(fileNames.ToArray());
             }));
         }
@@ -210,13 +211,21 @@ namespace BarTenderEtiketak
                                 // Asignar el valor de la variable a la variable de la etiqueta
                                 aldagaia.Value = nodoBalorea;
 
-                                Inprimatu(etiketa, inpresora);
+                                kola.Enqueue(etiketa);
+
+                                Inprimatu(kola.Dequeue(), inpresora);
                             }
                         }
                     }
                 }
             }
-            
+            //crea un objeto de la clase XmlDeleter
+            XmlDeleter deleter = new XmlDeleter();
+
+            //borra el archivo de la carpeta "XML" y guarda una copia en la carpeta "Xml kopiak"
+            deleter.ezabatuXml(xmlFilePath);
+
+            Thread.Sleep(500); 
         }
 
         private string KodigoaAtera(XmlDocument ErpXml)
@@ -284,9 +293,6 @@ namespace BarTenderEtiketak
             btEngine.Start();
 
             // Inpresora konfiguratu
-            //etiketa.PrintSetup.PrinterName = "Intermec PM43c_406_BACKUP";
-            //etiketa.PrintSetup.PrinterName = "Microsoft Print to Pdf";
-            //etiketa.PrintSetup.PrinterName = "KONICA MINOLTA Admin";
             etiketa.PrintSetup.PrinterName = inpresora;
 
             // etiketa inprimatu
@@ -351,7 +357,7 @@ namespace BarTenderEtiketak
             Xml_print.Enabled = true;
             KoloreaAldatu();
             Xml_print.Text = "BEGIRALEA MARTXAN JARRI";
-            
+
 
             if (watcher != null)
             {
