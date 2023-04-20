@@ -29,7 +29,7 @@ namespace BarTenderEtiketak
         FileSystemWatcher watcher = null;
         private Thread begiraleThread;
         private bool begira = false;
-        List<string> fileNames = new List<string>();
+        Queue<string> fileNames = new Queue<string>();
         string etiketaFormatoa;
         Engine btEngine;
         string intermec = "Intermec PM43c_406_BACKUP";
@@ -129,12 +129,6 @@ namespace BarTenderEtiketak
                 //BaloreakAsignatu(rootNode, etiketaCode, pdf);
                 //BaloreakAsignatu(rootNode, etiketaGarantia, konica);
 
-                //crea un objeto de la clase XmlDeleter
-                //XmlDeleter deleter = new XmlDeleter();
-
-                //borra el archivo de la carpeta "XML" y guarda una copia en la carpeta "Xml kopiak"
-                //Thread.Sleep(500);
-                //deleter.ezabatuXml();
 
                 //Limpiar el listbox despues de imprimir
                 Invoke(new Action(() =>
@@ -154,12 +148,11 @@ namespace BarTenderEtiketak
             fileCreatedEvent.Set();
 
             // Agregar el nombre del archivo a la lista
-            fileNames.Add(e.Name);
+            fileNames.Enqueue(e.Name);
 
             // Actualizar el contenido del ListBox con los nombres de los archivos
             listBox1.Invoke(new Action(() => {
-                //listBox1.Items.Clear();
-                listBox1.Items.AddRange(fileNames.ToArray());
+                listBox1.Items.Add(fileNames.Dequeue());
             }));
         }
 
