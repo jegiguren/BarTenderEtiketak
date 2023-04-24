@@ -1,4 +1,4 @@
-﻿namespace BarTenderEtiketak
+﻿namespace Xmlinprimatu
 {
     partial class Form1
     {
@@ -41,9 +41,9 @@
             // 
             this.etiketakBindingSource.DataMember = "etiketak";
             // 
-         
+
             // 
-           
+
             // 
             // Xml_print
             // 

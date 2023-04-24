@@ -1,7 +1,6 @@
 ﻿
-using Seagull.BarTender.Print;
-using Seagull.BarTender.PrintServer;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -16,26 +15,27 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml;
+using Timer = System.Windows.Forms.Timer;
 
-namespace BarTenderEtiketak
+namespace Xmlinprimatu
 {
     public partial class Form1 : Form
     {
         string directoryPath = @"C:\bt\XML";//ERP-ak xml-ak uzten dituen karpeta
         private AutoResetEvent fileCreatedEvent = new AutoResetEvent(false);
         string xmlFilePath;//ERP-ak sortzen duen xml-aren ruta osoa (karpeta+fitxategi izena)
-        XmlDocument xmlDoc, xmlWebService, xmlosoa;
-        LabelFormatDocument etiketa, etiketaGarantia, etiketaCode;
+        string xmlizena;
+        string fileName;
+        XmlDocument xmlDoc, xmlWebService, xmlosoa, xml;
         FileSystemWatcher watcher = null;
         private Thread begiraleThread;
         private bool begira = false;
         Queue<string> fileNames = new Queue<string>();
         string etiketaFormatoa;
-        Engine btEngine;
         string intermec = "Intermec PM43c_406_BACKUP";
         string pdf = "Microsoft Print to Pdf";
         string konica = "KONICA MINOLTA Admin";
-        Queue<LabelFormatDocument> kola = new Queue<LabelFormatDocument>();
+        Queue<XmlDocument> xmlKola = new Queue<XmlDocument> ();
 
 
         public Form1()
@@ -43,16 +43,10 @@ namespace BarTenderEtiketak
             InitializeComponent();
             btn_Gelditu.Enabled = false;
         }
-
+        
         private async void Xml_print_Click(object sender, EventArgs e)
         {
             KoloreaAldatu();
-
-            // Inpresio motorearen instantzia sortu
-            btEngine = new Engine();
-
-            // Inpresio zerbitzariarekin konektatu
-            btEngine.Start();
 
             //XmlDocument klaseko objetuak sortu
             xmlDoc = new XmlDocument(); //ERP-ak sortuko duen xml-a
@@ -87,138 +81,68 @@ namespace BarTenderEtiketak
 
             // Esperar a que se detecte un archivo
             Console.WriteLine("XML karpeta zaintzen...", filePath);
-            Console.ReadLine();
 
             while (true)
             {
                 // Esperar a que se cree un archivo en la carpeta
                 fileCreatedEvent.WaitOne();
+                  
+                fileName = fileNames.Dequeue(); //coger el primer elemento de la cola y borrarlo de la cola
 
-                // Leer el archivo XML
-                Console.WriteLine(xmlFilePath + " fitxategia aurkitua da");
-                //xmlIzena = Path.GetFileName(xmlFilePath); //fitxategiaren izena lortu
+                // Construir la ruta completa del archivo
+                string xmlFilePath = Path.Combine(filePath, fileName);
 
-                //aldagaian kargatu xml-a
-                xmlDoc.Load(xmlFilePath);
+                xmlDoc.Load(xmlFilePath); //aldagaian kargatu xml-a
 
-                //xml-tik kodigo artikulua atera gero Ws-ari bidaltzeko
-                string codigoArticulo = KodigoaAtera(xmlDoc);
-
-                //WsReader klaseko objetua sortu
-                WsReader wsreader = new WsReader();
-                //web zerbitzua kontsumitu parametro bezala kodigoa bidaliz eta emaitza xml batean gorde
-                xmlWebService = await wsreader.WsKontsumitu(codigoArticulo);
-
-                //ERP-aren xml-a eta Web zerbitzuaren xml- juntatu
-                xmlosoa = JuntatuXmlak(xmlWebService, xmlDoc);
-                Console.WriteLine(xmlosoa.OuterXml);
-
-                //root nodoa (aurrena) aldagai batean gorde
-                XmlNode rootNode = xmlosoa.DocumentElement;
-
-                //WS-ko xml-tik etiketa formatoa atera
-                etiketaFormatoa = EtiketaFormatoaAtera(xmlWebService);
-
-                //etiketa ireki formatoaren arabera
-                etiketa = btEngine.Documents.Open(@"C:\bt\etiketak aldagaiekin\FORM00" + etiketaFormatoa + ".btw");
-                etiketaGarantia = btEngine.Documents.Open(@"C:\bt\etiketak aldagaiekin\FORMGARANTIA.btw");
-                etiketaCode = btEngine.Documents.Open(@"C:\bt\etiketak aldagaiekin\FORMBARCODE.btw");
+                xmlKola.Enqueue(xmlDoc); //añadir el xml a la cola
 
 
-                BaloreakAsignatu(rootNode, etiketa, pdf);
-                //BaloreakAsignatu(rootNode, etiketaCode, pdf);
-                //BaloreakAsignatu(rootNode, etiketaGarantia, konica);
-
-
-                //Limpiar el listbox despues de imprimir
-                Invoke(new Action(() =>
+                while (xmlKola.Count > 0)
                 {
-                    listBox1.Items.Clear();
-                }));
+                    xml = xmlKola.Dequeue(); // Saca el primer elemento de la cola
+
+                    //xml-tik kodigo artikulua atera gero Ws-ari bidaltzeko
+                    string codigoArticulo = KodigoaAtera(xml);
+
+                    //WsReader klaseko objetua sortu
+                    WsReader wsreader = new WsReader();
+                    //web zerbitzua kontsumitu parametro bezala kodigoa bidaliz eta emaitza xml batean gorde
+                    xmlWebService = await wsreader.WsKontsumitu(codigoArticulo);
+
+                    //ERP-aren xml-a eta Web zerbitzuaren xml- juntatu
+                    xmlosoa = JuntatuXmlak(xmlWebService, xml);
+                    Console.WriteLine(xmlosoa.OuterXml);
+
+                    Inprimatu(xmlosoa);
+
+                    Thread.Sleep(1000);
+
+                    listBox1.Invoke(new Action(() =>
+                    {
+                        listBox1.Items.RemoveAt(0); //borra el primer elemento del listbox
+                    }));
+
+                    //crea un objeto de la clase XmlDeleter
+                    XmlDeleter deleter = new XmlDeleter();
+
+                    //borra el archivo de la carpeta "XML" y guarda una copia en la carpeta "Xml kopiak"
+                    deleter.ezabatuXml(xmlFilePath);
+                }
             }
-
         }
-
+       
         private void OnChanged(object source, FileSystemEventArgs e)
         {
-            // Leer el archivo XML
-            xmlFilePath = e.FullPath;
+            // Agregar el nombre del archivo a la cola
+            fileNames.Enqueue(e.Name);
+
+            listBox1.Invoke(new Action(() =>
+            {
+                listBox1.Items.AddRange(fileNames.ToArray()); //añadir al lisbox los nombres de los archivos de la cola
+            }));
 
             // Señalizar el evento de que se ha creado un archivo en la carpeta
             fileCreatedEvent.Set();
-
-            // Agregar el nombre del archivo a la lista
-            fileNames.Enqueue(e.Name);
-
-            // Actualizar el contenido del ListBox con los nombres de los archivos
-            listBox1.Invoke(new Action(() => {
-                listBox1.Items.Add(fileNames.Dequeue());
-            }));
-        }
-
-        private void BaloreakAsignatu(XmlNode nodoXml, LabelFormatDocument etiketa, string inpresora)
-        {
-            string nodoIzena = "";
-            string nodoBalorea = "";
-            SubStrings aldagaiak = null;
-
-            foreach (XmlNode nodo in nodoXml.ChildNodes)
-            {
-                if (nodo.Name != "Numeros_Serie")
-                {
-
-                    // Obtener el nombre del nodo
-                    nodoIzena = nodo.Name;
-
-                    // Obtener el valor del nodo
-                    nodoBalorea = nodo.InnerText;
-
-                    // Obtener las variables de la etiqueta
-                    aldagaiak = etiketa.SubStrings;
-
-                    // Recorrer las variables de la etiqueta
-                    foreach (SubString aldagaia in aldagaiak)
-                    {
-                        // Comparar el nombre de la variable con el nombre de la variable a asignar
-                        if (aldagaia.Name == nodoIzena)
-                        {
-                            // Asignar el valor de la variable a la variable de la etiqueta
-                            aldagaia.Value = nodoBalorea;
-                        }
-                    }
-                }
-
-                //XML dokumentoan "Numeros_Serie" aurkitzen duenean egingo duena
-                else
-                {
-                    foreach (XmlNode nodoSerial in nodo.ChildNodes)
-                    {
-                        foreach (SubString aldagaia in aldagaiak)
-                        {
-                            // Comparar el nombre de la variable con el nombre de la variable a asignar
-                            if (aldagaia.Name == "Serie")
-                            {
-                                //nodoaren balore aldagaia batean gorde
-                                nodoBalorea = nodoSerial.InnerText;
-
-                                // Asignar el valor de la variable a la variable de la etiqueta
-                                aldagaia.Value = nodoBalorea;
-
-                                kola.Enqueue(etiketa);
-
-                                Inprimatu(kola.Dequeue(), inpresora);
-                            }
-                        }
-                    }
-                }
-            }
-            //crea un objeto de la clase XmlDeleter
-            XmlDeleter deleter = new XmlDeleter();
-
-            //borra el archivo de la carpeta "XML" y guarda una copia en la carpeta "Xml kopiak"
-            deleter.ezabatuXml(xmlFilePath);
-
-            Thread.Sleep(500); 
         }
 
         private string KodigoaAtera(XmlDocument ErpXml)
@@ -243,60 +167,42 @@ namespace BarTenderEtiketak
             }
         }
 
-        private string EtiketaFormatoaAtera(XmlDocument ErpWs)
+        private static void Inprimatu(XmlDocument xml)
         {
+            // Crear una instancia de PrintDocument
+            //System.Drawing.Printing.PrintDocument printDoc = new System.Drawing.Printing.PrintDocument();
 
-            // Obtener el nodo "Codigo_Articulo"
-            XmlNode codigoArticuloNode = ErpWs.SelectSingleNode("//etiketaFormato");
+            // Manejar el evento PrintPage del objeto PrintDocument
+            //printDoc.PrintPage += (sender, e) =>
+            //{
+                // Obtener el contenido del archivo XmlDocument como una cadena
+                //string xmlString = xml.OuterXml;
 
-            // Obtener el valor del nodo y asignarlo a una variable
-            string etiketaFormato = null;
-            try
-            {
-                etiketaFormato = codigoArticuloNode.InnerText;
-                int etiketaFormatoZenb = Int32.Parse(etiketaFormato);
+                // Crear un objeto Font para el texto a imprimir
+                //System.Drawing.Font font = new System.Drawing.Font("Arial", 12, FontStyle.Regular);
 
-                if (etiketaFormatoZenb < 10)
-                {
-                    etiketaFormato = etiketaFormatoZenb.ToString();
-                    etiketaFormato = "0" + etiketaFormato;
-                }
+                // Configurar la posición y el tamaño del área de impresión
+                //RectangleF area = e.MarginBounds;
 
-                else
-                {
-                    etiketaFormato = etiketaFormatoZenb.ToString();
-                }
-                return etiketaFormato;
-            }
+                // Dibujar el contenido del archivo XmlDocument en el área de impresión
+                //e.Graphics.DrawString(xmlString, font, Brushes.Black, area);
+            //};
 
-            catch (NullReferenceException ex)
-            {
-                // Manejar la excepción si el nodo no se encuentra
-                Console.WriteLine("No se encontró el nodo 'Codigo_Articulo'");
-                return null;
-            }
-        }
+            // Crear una instancia de PrinterSettings
+            //System.Drawing.Printing.PrinterSettings printerSettings = new System.Drawing.Printing.PrinterSettings();
 
-        private static void Inprimatu(LabelFormatDocument etiketa, string inpresora)
-        {
-            //inpresio motorea sortu
-            Engine btEngine = new Engine();
+            // Habilitar la impresión a archivo
+            //printerSettings.PrintToFile = true;
 
-            // Inpresio zerbitzariarekin konektatu
-            btEngine.Start();
+            // Especificar el nombre de archivo y la ubicación donde se guardará el archivo PDF
+            //printerSettings.PrintFileName = @"C:\bt\PDF frogak\xml.pdf\";
 
-            // Inpresora konfiguratu
-            etiketa.PrintSetup.PrinterName = inpresora;
+            // Enviar el contenido a la impresora
+            //printDoc.PrinterSettings = printerSettings;
+            //printDoc.Print();
 
-            // etiketa inprimatu
-            etiketa.Print();
-            Thread.Sleep(1000);
 
-            // etiketaren dokumentua itxi
-            //etiketa.Close(SaveOptions.DoNotSaveChanges);
-
-            btEngine.Stop();
-
+            Console.WriteLine(xml.OuterXml);
         }
 
         public XmlDocument JuntatuXmlak(XmlDocument xmlDoc1, XmlDocument xmlDoc2)
@@ -326,10 +232,10 @@ namespace BarTenderEtiketak
 
         private void KoloreaAldatu()
         {
-            if (Xml_print.BackColor != Color.LightGreen)
+            if (Xml_print.BackColor != System.Drawing.Color.LightGreen)
             {
                 // Cambiar el color del botón a verde si no lo está
-                Xml_print.BackColor = Color.LightGreen;
+                Xml_print.BackColor = System.Drawing.Color.LightGreen;
             }
             else
             {

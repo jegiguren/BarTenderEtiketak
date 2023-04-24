@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace BarTenderEtiketak.ServiceReference1 {
+namespace Xmlinprimatu.ServiceReference1 {
     
     
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.ServiceModel", "4.0.0.0")]
@@ -18,11 +18,11 @@ namespace BarTenderEtiketak.ServiceReference1 {
         [System.ServiceModel.OperationContractAttribute(Action="http://cms.sammic.com:8080/api_getSpecsEtiquetado", ReplyAction="*")]
         [System.ServiceModel.XmlSerializerFormatAttribute(Style=System.ServiceModel.OperationFormatStyle.Rpc, SupportFaults=true)]
         [return: System.ServiceModel.MessageParameterAttribute(Name="result")]
-        BarTenderEtiketak.ServiceReference1.EtiquetadoBean api_getSpecsEtiquetado(string codigo);
+        Xmlinprimatu.ServiceReference1.EtiquetadoBean api_getSpecsEtiquetado(string codigo);
         
         [System.ServiceModel.OperationContractAttribute(Action="http://cms.sammic.com:8080/api_getSpecsEtiquetado", ReplyAction="*")]
         [return: System.ServiceModel.MessageParameterAttribute(Name="result")]
-        System.Threading.Tasks.Task<BarTenderEtiketak.ServiceReference1.EtiquetadoBean> api_getSpecsEtiquetadoAsync(string codigo);
+        System.Threading.Tasks.Task<Xmlinprimatu.ServiceReference1.EtiquetadoBean> api_getSpecsEtiquetadoAsync(string codigo);
     }
     
     /// <remarks/>
@@ -660,12 +660,12 @@ namespace BarTenderEtiketak.ServiceReference1 {
     }
     
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.ServiceModel", "4.0.0.0")]
-    public interface EtiquetadoApiPortTypeChannel : BarTenderEtiketak.ServiceReference1.EtiquetadoApiPortType, System.ServiceModel.IClientChannel {
+    public interface EtiquetadoApiPortTypeChannel : Xmlinprimatu.ServiceReference1.EtiquetadoApiPortType, System.ServiceModel.IClientChannel {
     }
     
     [System.Diagnostics.DebuggerStepThroughAttribute()]
     [System.CodeDom.Compiler.GeneratedCodeAttribute("System.ServiceModel", "4.0.0.0")]
-    public partial class EtiquetadoApiPortTypeClient : System.ServiceModel.ClientBase<BarTenderEtiketak.ServiceReference1.EtiquetadoApiPortType>, BarTenderEtiketak.ServiceReference1.EtiquetadoApiPortType {
+    public partial class EtiquetadoApiPortTypeClient : System.ServiceModel.ClientBase<Xmlinprimatu.ServiceReference1.EtiquetadoApiPortType>, Xmlinprimatu.ServiceReference1.EtiquetadoApiPortType {
         
         public EtiquetadoApiPortTypeClient() {
         }
@@ -686,11 +686,11 @@ namespace BarTenderEtiketak.ServiceReference1 {
                 base(binding, remoteAddress) {
         }
         
-        public BarTenderEtiketak.ServiceReference1.EtiquetadoBean api_getSpecsEtiquetado(string codigo) {
+        public Xmlinprimatu.ServiceReference1.EtiquetadoBean api_getSpecsEtiquetado(string codigo) {
             return base.Channel.api_getSpecsEtiquetado(codigo);
         }
         
-        public System.Threading.Tasks.Task<BarTenderEtiketak.ServiceReference1.EtiquetadoBean> api_getSpecsEtiquetadoAsync(string codigo) {
+        public System.Threading.Tasks.Task<Xmlinprimatu.ServiceReference1.EtiquetadoBean> api_getSpecsEtiquetadoAsync(string codigo) {
             return base.Channel.api_getSpecsEtiquetadoAsync(codigo);
         }
     }

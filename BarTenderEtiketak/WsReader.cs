@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using System.Xml.Serialization;
 using System.Xml;
 
-namespace BarTenderEtiketak
+namespace Xmlinprimatu
 {
     internal class WsReader
     {

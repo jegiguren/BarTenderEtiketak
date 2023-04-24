@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 
 
-namespace BarTenderEtiketak
+namespace Xmlinprimatu
 {
     internal static class Program
     {
