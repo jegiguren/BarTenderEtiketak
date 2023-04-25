@@ -10,6 +10,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices.ComTypes;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -30,7 +32,7 @@ namespace Xmlinprimatu
         FileSystemWatcher watcher = null;
         private Thread begiraleThread;
         private bool begira = false;
-        Queue<string> fileNames = new Queue<string>();
+        List<string> fileNames = new List<string>();
         string etiketaFormatoa;
         string intermec = "Intermec PM43c_406_BACKUP";
         string pdf = "Microsoft Print to Pdf";
@@ -86,63 +88,76 @@ namespace Xmlinprimatu
             {
                 // Esperar a que se cree un archivo en la carpeta
                 fileCreatedEvent.WaitOne();
-                  
-                fileName = fileNames.Dequeue(); //coger el primer elemento de la cola y borrarlo de la cola
 
-                // Construir la ruta completa del archivo
-                string xmlFilePath = Path.Combine(filePath, fileName);
-
-                xmlDoc.Load(xmlFilePath); //aldagaian kargatu xml-a
-
-                xmlKola.Enqueue(xmlDoc); //añadir el xml a la cola
-
-
-                while (xmlKola.Count > 0)
+                // Obtener una copia de los nombres de archivo actuales
+                List<string> currentFileNames;
+                lock (fileNames)
                 {
-                    xml = xmlKola.Dequeue(); // Saca el primer elemento de la cola
+                    currentFileNames = new List<string>(fileNames);
+                    fileNames.Clear();
+                }
 
-                    //xml-tik kodigo artikulua atera gero Ws-ari bidaltzeko
-                    string codigoArticulo = KodigoaAtera(xml);
+                foreach (string fileName in currentFileNames)
+                {
+                    // Construir la ruta completa del archivo
+                    string xmlFilePath = Path.Combine(filePath, fileName);
 
-                    //WsReader klaseko objetua sortu
-                    WsReader wsreader = new WsReader();
-                    //web zerbitzua kontsumitu parametro bezala kodigoa bidaliz eta emaitza xml batean gorde
-                    xmlWebService = await wsreader.WsKontsumitu(codigoArticulo);
-
-                    //ERP-aren xml-a eta Web zerbitzuaren xml- juntatu
-                    xmlosoa = JuntatuXmlak(xmlWebService, xml);
-                    Console.WriteLine(xmlosoa.OuterXml);
-
-                    Inprimatu(xmlosoa);
-
-                    Thread.Sleep(1000);
-
-                    listBox1.Invoke(new Action(() =>
+                    try
                     {
-                        listBox1.Items.RemoveAt(0); //borra el primer elemento del listbox
-                    }));
+                        // Cargar el archivo XML
+                        XmlDocument xml = new XmlDocument();
+                        xml.Load(xmlFilePath);
 
-                    //crea un objeto de la clase XmlDeleter
-                    XmlDeleter deleter = new XmlDeleter();
+                        // Obtener el código del artículo
+                        string codigoArticulo = KodigoaAtera(xml);
 
-                    //borra el archivo de la carpeta "XML" y guarda una copia en la carpeta "Xml kopiak"
-                    deleter.ezabatuXml(xmlFilePath);
+                        // Consumir el servicio web con el código del artículo
+                        WsReader wsreader = new WsReader();
+                        XmlDocument xmlWebService = await wsreader.WsKontsumitu(codigoArticulo);
+
+                        // Unir el XML de ERP y el XML del servicio web
+                        XmlDocument xmlosoa = JuntatuXmlak(xmlWebService, xml);
+                        Console.WriteLine(xmlosoa.OuterXml);
+
+                        Inprimatu(xmlosoa);
+
+                        Thread.Sleep(2000);
+
+                        // Crear un objeto de la clase XmlDeleter y borrar el archivo
+                        XmlDeleter deleter = new XmlDeleter();
+                        deleter.ezabatuXml(xmlFilePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Si hay algún error, mostrarlo en la consola
+                        Console.WriteLine($"Error al procesar el archivo {fileName}: {ex.Message}");
+                    }
+                    finally
+                    {
+                        // Eliminar el nombre de archivo del ListBox
+                        listBox1.Invoke(new Action(() => listBox1.Items.Remove(fileName)));
+                    }
                 }
             }
         }
        
         private void OnChanged(object source, FileSystemEventArgs e)
         {
-            // Agregar el nombre del archivo a la cola
-            fileNames.Enqueue(e.Name);
-
-            listBox1.Invoke(new Action(() =>
+            lock (fileNames) //para que solo pueda acceder un subproceso a la vez
             {
-                listBox1.Items.AddRange(fileNames.ToArray()); //añadir al lisbox los nombres de los archivos de la cola
-            }));
+                // Agregar el nombre del archivo a la lista si no está presente
+                if (!fileNames.Contains(e.Name))
+                {
+                    fileNames.Add(e.Name);
+
+                    // Agregar el nombre del archivo al ListBox
+                    listBox1.Invoke(new Action(() => listBox1.Items.Add(e.Name)));
+                }
+            }
 
             // Señalizar el evento de que se ha creado un archivo en la carpeta
             fileCreatedEvent.Set();
+            
         }
 
         private string KodigoaAtera(XmlDocument ErpXml)
