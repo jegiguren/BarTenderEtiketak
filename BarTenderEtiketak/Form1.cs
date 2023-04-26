@@ -24,18 +24,22 @@ namespace BarTenderEtiketak
         string directoryPath = @"C:\bt\XML";//ERP-ak xml-ak uzten dituen karpeta
         private AutoResetEvent fileCreatedEvent = new AutoResetEvent(false);
         string xmlFilePath;//ERP-ak sortzen duen xml-aren ruta osoa (karpeta+fitxategi izena)
-        XmlDocument xmlDoc, xmlWebService, xmlosoa;
-        LabelFormatDocument etiketa, etiketaGarantia, etiketaCode;
+        string xmlizena;
+        string fileName;
+        XmlDocument xmlDoc, xmlWebService, xmlosoa, xml;
         FileSystemWatcher watcher = null;
         private Thread begiraleThread;
         private bool begira = false;
-        Queue<string> fileNames = new Queue<string>();
-        string etiketaFormatoa;
-        Engine btEngine;
+        List<string> fileNames = new List<string>();
         string intermec = "Intermec PM43c_406_BACKUP";
         string pdf = "Microsoft Print to Pdf";
         string konica = "KONICA MINOLTA Admin";
-        Queue<LabelFormatDocument> kola = new Queue<LabelFormatDocument>();
+        string zebra = "ZDesigner GK420d";
+        Queue<XmlDocument> xmlKola = new Queue<XmlDocument>();
+        string etiketaFormatoa;
+        LabelFormatDocument etiketa, etiketaGarantia, etiketaCode;
+        Engine btEngine;
+        
 
 
         public Form1()
@@ -72,88 +76,120 @@ namespace BarTenderEtiketak
 
         private async Task begiratuKarpeta(string filePath)
         {
-            // Crear un objeto FileSystemWatcher
-            watcher = new FileSystemWatcher();
-            watcher.Path = filePath;
+            try
+            {
+                // Crear un objeto FileSystemWatcher
+                watcher = new FileSystemWatcher();
+                watcher.Path = filePath;
 
-            // Vigilar solo los archivos con extensión .xml
-            watcher.Filter = "*.xml";
+                // Vigilar solo los archivos con extensión .xml
+                watcher.Filter = "*.xml";
 
-            // Suscribirse al evento cuando se detecte un cambio en la carpeta
-            watcher.Created += OnChanged;
+                // Suscribirse al evento cuando se detecte un cambio en la carpeta
+                watcher.Created += OnChanged;
 
-            // Iniciar la vigilancia
-            watcher.EnableRaisingEvents = true;
+                // Iniciar la vigilancia
+                watcher.EnableRaisingEvents = true;
 
-            // Esperar a que se detecte un archivo
-            Console.WriteLine("XML karpeta zaintzen...", filePath);
-            Console.ReadLine();
+                // Esperar a que se detecte un archivo
+                Console.WriteLine("XML karpeta zaintzen...", filePath);
+            }
+
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Errorea FileSystemWatcher sortzean: {ex.Message}");
+            }
+
 
             while (true)
             {
                 // Esperar a que se cree un archivo en la carpeta
                 fileCreatedEvent.WaitOne();
 
-                // Leer el archivo XML
-                Console.WriteLine(xmlFilePath + " fitxategia aurkitua da");
-                //xmlIzena = Path.GetFileName(xmlFilePath); //fitxategiaren izena lortu
-
-                //aldagaian kargatu xml-a
-                xmlDoc.Load(xmlFilePath);
-
-                //xml-tik kodigo artikulua atera gero Ws-ari bidaltzeko
-                string codigoArticulo = KodigoaAtera(xmlDoc);
-
-                //WsReader klaseko objetua sortu
-                WsReader wsreader = new WsReader();
-                //web zerbitzua kontsumitu parametro bezala kodigoa bidaliz eta emaitza xml batean gorde
-                xmlWebService = await wsreader.WsKontsumitu(codigoArticulo);
-
-                //ERP-aren xml-a eta Web zerbitzuaren xml- juntatu
-                xmlosoa = JuntatuXmlak(xmlWebService, xmlDoc);
-                Console.WriteLine(xmlosoa.OuterXml);
-
-                //root nodoa (aurrena) aldagai batean gorde
-                XmlNode rootNode = xmlosoa.DocumentElement;
-
-                //WS-ko xml-tik etiketa formatoa atera
-                etiketaFormatoa = EtiketaFormatoaAtera(xmlWebService);
-
-                //etiketa ireki formatoaren arabera
-                etiketa = btEngine.Documents.Open(@"C:\bt\etiketak aldagaiekin\FORM00" + etiketaFormatoa + ".btw");
-                etiketaGarantia = btEngine.Documents.Open(@"C:\bt\etiketak aldagaiekin\FORMGARANTIA.btw");
-                etiketaCode = btEngine.Documents.Open(@"C:\bt\etiketak aldagaiekin\FORMBARCODE.btw");
-
-
-                BaloreakAsignatu(rootNode, etiketa, pdf);
-                //BaloreakAsignatu(rootNode, etiketaCode, pdf);
-                //BaloreakAsignatu(rootNode, etiketaGarantia, konica);
-
-
-                //Limpiar el listbox despues de imprimir
-                Invoke(new Action(() =>
+                // Obtener una copia de los nombres de archivo actuales
+                List<string> currentFileNames;
+                lock (fileNames)
                 {
-                    listBox1.Items.Clear();
-                }));
-            }
+                    currentFileNames = new List<string>(fileNames);
+                    fileNames.Clear();
+                }
 
+                foreach (string fileName in currentFileNames)
+                {
+                    // Construir la ruta completa del archivo
+                    xmlFilePath = Path.Combine(filePath, fileName);
+
+                    try
+                    {
+                        // Cargar el archivo XML
+                        XmlDocument xml = new XmlDocument();
+                        xml.Load(xmlFilePath);
+
+                        //xml-tik kodigo artikulua atera gero Ws-ari bidaltzeko
+                        string codigoArticulo = KodigoaAtera(xml);
+
+                        // Consumir el servicio web con el código del artículo
+                        WsReader wsreader = new WsReader();
+                        XmlDocument xmlWebService = await wsreader.WsKontsumitu(codigoArticulo);
+
+                        // Unir el XML de ERP y el XML del servicio web
+                        XmlDocument xmlosoa = JuntatuXmlak(xmlWebService, xml);
+                        Console.WriteLine(xmlosoa.OuterXml);
+
+                        //root nodoa (aurrena) aldagai batean gorde
+                        XmlNode rootNode = xmlosoa.DocumentElement;
+
+                        //WS-ko xml-tik etiketa formatoa atera
+                        etiketaFormatoa = EtiketaFormatoaAtera(xmlWebService);
+
+                        //etiketa ireki formatoaren arabera
+                        etiketa = btEngine.Documents.Open(@"C:\bt\etiketak aldagaiekin\FORM00" + etiketaFormatoa + ".btw");
+                        etiketaGarantia = btEngine.Documents.Open(@"C:\bt\etiketak aldagaiekin\FORMGARANTIA.btw");
+                        etiketaCode = btEngine.Documents.Open(@"C:\bt\etiketak aldagaiekin\FORMBARCODE.btw");
+
+                        BaloreakAsignatu(rootNode, etiketa, zebra);
+                        //BaloreakAsignatu(rootNode, etiketaCode, zebra);
+                        //BaloreakAsignatu(rootNode, etiketaGarantia, konica);
+
+                        //crea un objeto de la clase XmlDeleter
+                        XmlDeleter deleter = new XmlDeleter();
+
+                        //borra el archivo de la carpeta "XML" y guarda una copia en la carpeta "Xml kopiak"
+                        deleter.ezabatuXml(xmlFilePath);
+
+                        Thread.Sleep(500);
+                    }
+
+                    catch (Exception ex)
+                    {
+                        // Si hay algún error, mostrarlo en la consola
+                        Console.WriteLine($"Errorea fitxategia prezesatzean {fileName}: {ex.Message}");
+                    }
+                    finally
+                    {
+                        // Eliminar el nombre de archivo del ListBox
+                        listBox1.Invoke(new Action(() => listBox1.Items.Remove(fileName)));
+                    }
+                }
+            }
         }
 
         private void OnChanged(object source, FileSystemEventArgs e)
         {
-            // Leer el archivo XML
-            xmlFilePath = e.FullPath;
+            lock (fileNames) //para que solo pueda acceder un subproceso a la vez
+            {
+                // Agregar el nombre del archivo a la lista si no está presente
+                if (!fileNames.Contains(e.Name))
+                {
+                    fileNames.Add(e.Name);
+
+                    // Agregar el nombre del archivo al ListBox
+                    listBox1.Invoke(new Action(() => listBox1.Items.Add(e.Name)));
+                }
+            }
 
             // Señalizar el evento de que se ha creado un archivo en la carpeta
             fileCreatedEvent.Set();
-
-            // Agregar el nombre del archivo a la lista
-            fileNames.Enqueue(e.Name);
-
-            // Actualizar el contenido del ListBox con los nombres de los archivos
-            listBox1.Invoke(new Action(() => {
-                listBox1.Items.Add(fileNames.Dequeue());
-            }));
         }
 
         private void BaloreakAsignatu(XmlNode nodoXml, LabelFormatDocument etiketa, string inpresora)
@@ -204,21 +240,12 @@ namespace BarTenderEtiketak
                                 // Asignar el valor de la variable a la variable de la etiqueta
                                 aldagaia.Value = nodoBalorea;
 
-                                kola.Enqueue(etiketa);
-
-                                Inprimatu(kola.Dequeue(), inpresora);
+                                Inprimatu(etiketa, inpresora);
                             }
                         }
                     }
                 }
-            }
-            //crea un objeto de la clase XmlDeleter
-            XmlDeleter deleter = new XmlDeleter();
-
-            //borra el archivo de la carpeta "XML" y guarda una copia en la carpeta "Xml kopiak"
-            deleter.ezabatuXml(xmlFilePath);
-
-            Thread.Sleep(500); 
+            }          
         }
 
         private string KodigoaAtera(XmlDocument ErpXml)
@@ -277,25 +304,35 @@ namespace BarTenderEtiketak
             }
         }
 
-        private static void Inprimatu(LabelFormatDocument etiketa, string inpresora)
+        private void Inprimatu(LabelFormatDocument etiketa, string inpresora)
         {
-            //inpresio motorea sortu
-            Engine btEngine = new Engine();
+            try
+            {
+                //inpresio motorea sortu
+                Engine btEngine = new Engine();
 
-            // Inpresio zerbitzariarekin konektatu
-            btEngine.Start();
+                // Inpresio zerbitzariarekin konektatu
+                btEngine.Start();
 
-            // Inpresora konfiguratu
-            etiketa.PrintSetup.PrinterName = inpresora;
+                // Inpresora konfiguratu
+                etiketa.PrintSetup.PrinterName = inpresora;
 
-            // etiketa inprimatu
-            etiketa.Print();
-            Thread.Sleep(1000);
+                // etiketa inprimatu
+                etiketa.Print();
+                Thread.Sleep(1000);
 
-            // etiketaren dokumentua itxi
-            //etiketa.Close(SaveOptions.DoNotSaveChanges);
+                // Inpresio zerbitzariarekin konexioa ixteko
+                btEngine.Stop();
 
-            btEngine.Stop();
+                //string serie = etiketa.SubStrings.GetNamedSubStringValue("Serie");
+
+                LogToFile(xmlFilePath+ " fitxategia inprimatu da");
+            }
+            catch (Exception ex)
+            {
+                // Si hay algún error, mostrarlo en la consola
+                Console.WriteLine($"Errorea etiketa inprimatzerakoan: {ex.Message}");
+            }
 
         }
 
@@ -356,6 +393,30 @@ namespace BarTenderEtiketak
             {
                 watcher.Created -= OnChanged;
                 watcher.EnableRaisingEvents = false;
+            }
+        }
+
+        private void LogToFile(string message)
+        {
+            string logFilePath = "logFile.log";
+            try
+            {
+                // Abrir un flujo de escritura hacia el archivo de registro y añadir el mensaje
+                using (StreamWriter streamWriter = File.AppendText(logFilePath))
+                {
+                    // Formatear el mensaje con la fecha y hora actual
+                    string logMessage = string.Format("{0} {1}: {2}", DateTime.Now.ToShortDateString(), DateTime.Now.ToLongTimeString(), message);
+
+                    // Escribir el mensaje en el archivo de registro y guardar los cambios
+                    streamWriter.WriteLine(logMessage);
+                    streamWriter.Flush();
+                    streamWriter.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                // En caso de que haya un error, imprimir un mensaje de error en la consola
+                Console.WriteLine("Erroea loga idazterakoan: " + ex.Message);
             }
         }
     }

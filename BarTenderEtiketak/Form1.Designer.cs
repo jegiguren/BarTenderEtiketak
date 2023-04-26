@@ -41,15 +41,11 @@
             // 
             this.etiketakBindingSource.DataMember = "etiketak";
             // 
-         
-            // 
-           
-            // 
             // Xml_print
             // 
             this.Xml_print.Location = new System.Drawing.Point(52, 33);
             this.Xml_print.Name = "Xml_print";
-            this.Xml_print.Size = new System.Drawing.Size(230, 54);
+            this.Xml_print.Size = new System.Drawing.Size(301, 54);
             this.Xml_print.TabIndex = 9;
             this.Xml_print.Text = "BEGIRALEA MARTXAN JARRI";
             this.Xml_print.UseVisualStyleBackColor = true;
@@ -60,14 +56,14 @@
             this.listBox1.FormattingEnabled = true;
             this.listBox1.Location = new System.Drawing.Point(52, 139);
             this.listBox1.Name = "listBox1";
-            this.listBox1.Size = new System.Drawing.Size(230, 329);
+            this.listBox1.Size = new System.Drawing.Size(301, 433);
             this.listBox1.TabIndex = 11;
             // 
             // btn_Gelditu
             // 
-            this.btn_Gelditu.Location = new System.Drawing.Point(309, 33);
+            this.btn_Gelditu.Location = new System.Drawing.Point(390, 33);
             this.btn_Gelditu.Name = "btn_Gelditu";
-            this.btn_Gelditu.Size = new System.Drawing.Size(91, 54);
+            this.btn_Gelditu.Size = new System.Drawing.Size(275, 54);
             this.btn_Gelditu.TabIndex = 12;
             this.btn_Gelditu.Text = "GELDITU";
             this.btn_Gelditu.UseVisualStyleBackColor = true;
