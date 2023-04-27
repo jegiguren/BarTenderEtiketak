@@ -147,7 +147,7 @@ namespace BarTenderEtiketak
                         etiketaGarantia = btEngine.Documents.Open(@"C:\bt\etiketak aldagaiekin\FORMGARANTIA.btw");
                         etiketaCode = btEngine.Documents.Open(@"C:\bt\etiketak aldagaiekin\FORMBARCODE.btw");
 
-                        BaloreakAsignatu(rootNode, etiketa, zebra);
+                        BaloreakAsignatu(rootNode, etiketa, pdf);
                         //BaloreakAsignatu(rootNode, etiketaCode, zebra);
                         //BaloreakAsignatu(rootNode, etiketaGarantia, konica);
 
